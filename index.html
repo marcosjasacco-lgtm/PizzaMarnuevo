@@ -94,13 +94,13 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
           <div><span class="muted">📊 Resultado</span><div class="big" id="homeResult">$0</div></div>
         </div>
       </div>
-      <div class="grid" style="margin-top:14px">
+      <div id="dashboardGrid" class="grid" style="margin-top:14px">
         <button class="tile" onclick="go('orders')"><b>🧾 Nueva comanda</b><span>Cargar pedido y pago</span></button>
-        <button class="tile" onclick="go('sales')"><b>💰 Ventas</b><span>Ver pedidos y facturación</span></button>
-        <button class="tile" onclick="go('stats')"><b>📊 Estadísticas</b><span>Analizar el mes</span></button>
-        <button class="tile" onclick="go('products')"><b>📦 Productos</b><span>Precios y catálogo</span></button>
-        <button class="tile" onclick="go('expenses')"><b>💸 Gastos</b><span>Cargar y consultar gastos</span></button>
-        <button class="tile" onclick="go('settings')"><b>⚙️ Configuración</b><span>Cuenta y sistema</span></button>
+        <button class="tile admin-only" onclick="go('sales')"><b>💰 Ventas</b><span>Ver pedidos y facturación</span></button>
+        <button class="tile admin-only" onclick="go('stats')"><b>📊 Estadísticas</b><span>Analizar el mes</span></button>
+        <button class="tile admin-only" onclick="go('products')"><b>📦 Productos</b><span>Precios y catálogo</span></button>
+        <button class="tile admin-only" onclick="go('expenses')"><b>💸 Gastos</b><span>Cargar y consultar gastos</span></button>
+        <button class="tile admin-only" onclick="go('settings')"><b>⚙️ Configuración</b><span>Cuenta y sistema</span></button>
       </div>
     </section>
 
@@ -257,7 +257,10 @@ setMsg("resetMsg","Contraseña actualizada. Entrando a PizzaMar...","#72e6a3");
 setTimeout(openApp,700);
 }
 async function logout(){await db.auth.signOut();location.reload()}
-function openApp(){
+async function openApp(){
+  const {data:{user}} = await db.auth.getUser();
+  const role = user?.app_metadata?.role || "employee";
+  document.querySelectorAll(".admin-only").forEach(el => el.style.display = role === "admin" ? "" : "none");
   document.getElementById("login").classList.add("hidden");
   document.getElementById("recovery").classList.add("hidden");
   document.getElementById("reset").classList.add("hidden");
