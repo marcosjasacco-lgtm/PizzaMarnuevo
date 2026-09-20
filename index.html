@@ -257,7 +257,15 @@ setMsg("resetMsg","Contraseña actualizada. Entrando a PizzaMar...","#72e6a3");
 setTimeout(openApp,700);
 }
 async function logout(){await db.auth.signOut();location.reload()}
-function openApp(){login.classList.add("hidden");recovery.classList.add("hidden");reset.classList.add("hidden");app.classList.remove("hidden");today.textContent=new Date().toLocaleDateString("es-AR");loadSummary()}
+function openApp(){
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("recovery").classList.add("hidden");
+  document.getElementById("reset").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("today").textContent=new Date().toLocaleDateString("es-AR");
+  renderProductButtons();
+  loadSummary();
+}
 function go(id){document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");if(id==="sales")loadSales();if(id==="expenses")loadExpenses();if(id==="stats")loadStats();if(id==="products")renderProductManager();if(id==="orders")renderProductButtons();window.scrollTo(0,0)}
 function renderProductButtons(){
 productButtons.innerHTML=products.map((p,i)=>`<button class="product" onclick="addProduct(${i})"><b>${esc(p[0])}</b><div class="price">${money(p[1])}</div></button>`).join("");
