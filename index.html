@@ -215,12 +215,32 @@ function showRecovery(){login.classList.add("hidden");recovery.classList.remove(
 function showReset(){login.classList.add("hidden");recovery.classList.add("hidden");reset.classList.remove("hidden")}
 function setMsg(id,text,color){const e=document.getElementById(id);e.textContent=text;e.style.color=color||""}
 async function login(){
-setMsg("loginMsg","");
-const em=email.value.trim(),pw=password.value;
-if(!em||!pw){setMsg("loginMsg","Completá email y contraseña.");return}
-const {error}=await db.auth.signInWithPassword({email:em,password:pw});
-if(error){setMsg("loginMsg",error.message);return}
-openApp();
+  const em=email.value.trim(), pw=password.value;
+  setMsg("loginMsg","");
+
+  if(!em || !pw){
+    setMsg("loginMsg","Completá email y contraseña.");
+    return;
+  }
+
+  setMsg("loginMsg","Ingresando...","#72e6a3");
+
+  try{
+    const resultado=await Promise.race([
+      db.auth.signInWithPassword({email:em,password:pw}),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error("La conexión tardó demasiado. Revisá tu internet y probá nuevamente.")),10000))
+    ]);
+
+    if(resultado.error){
+      setMsg("loginMsg",resultado.error.message);
+      return;
+    }
+
+    openApp();
+
+  }catch(e){
+    setMsg("loginMsg",e.message || "No se pudo iniciar sesión.");
+  }
 }
 async function sendRecovery(){
 const em=recoveryEmail.value.trim();if(!em){setMsg("recoveryMsg","Ingresá tu email.");return}
