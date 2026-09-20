@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PizzaMar · Sistema de gestión</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--red:#ef3b3b;--red2:#ff5a5a;--dark:#171717;--panel:#202020;--panel2:#292929;--text:#f5f5f5;--muted:#aaa;--line:#383838;--green:#63d49a;--yellow:#f4c95d}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--text);background:#111}
+body{background:linear-gradient(#0009,#0009),url("file_00000000a740820e954d7d12ddade573.png") center/cover fixed no-repeat}
+button,input,select{font:inherit}button{cursor:pointer}
+.hidden{display:none!important}
+.screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px}
+.card{width:min(520px,100%);background:#1d1d1df2;border:1px solid #ffffff12;border-radius:28px;padding:30px;box-shadow:0 20px 70px #0008}
+.logo{font-size:42px;font-weight:800;text-align:center;letter-spacing:-2px}.logo span{color:var(--red)}.subtitle{text-align:center;color:#aaa;margin:4px 0 28px}
+label{display:block;color:#bbb;font-size:14px;margin:14px 0 7px}input,select{width:100%;padding:14px 15px;border-radius:13px;border:1px solid #555;background:#f0f5ff;color:#161616;outline:none}
+.btn{border:0;border-radius:13px;padding:14px 18px;font-weight:800}.primary{background:var(--red);color:#fff}.primary:hover{background:var(--red2)}.ghost{background:#333;color:#fff}.danger{background:#6f2020;color:#fff}.link{display:block;background:none;border:0;color:#ff9999;text-decoration:underline;margin:20px auto 0}
+.msg{text-align:center;min-height:22px;color:#ff9292;margin-top:12px}
+.app{min-height:100vh;background:#101010cc}
+.top{position:sticky;top:0;z-index:5;background:#171717ed;backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.top .brand{font-weight:900;font-size:23px}.brand span{color:var(--red)}
+.top small{color:#aaa}.top-actions{display:flex;gap:8px}
+.wrap{width:min(1180px,100%);margin:auto;padding:20px 16px 50px}
+.hero{padding:8px 0 18px}.hero h1{margin:0 0 4px;font-size:30px}.hero p{margin:0;color:#aaa}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.tile{border:1px solid #ffffff12;background:#1d1d1de8;border-radius:18px;padding:18px;min-height:110px;text-align:left;color:#fff}
+.tile b{display:block;font-size:18px;margin-bottom:7px}.tile span{color:#aaa;font-size:13px}.tile:hover{border-color:#ffffff30;transform:translateY(-1px)}
+.panel{background:#1d1d1de8;border:1px solid #ffffff12;border-radius:18px;padding:18px;margin-top:14px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.muted{color:#aaa}.big{font-size:27px;font-weight:850}.positive{color:var(--green)}.negative{color:#ff8e8e}
+.section{display:none}.section.active{display:block}
+.back{margin-bottom:14px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:700px){.two{grid-template-columns:1fr}.top .brand{font-size:20px}}
+.list{display:grid;gap:9px;margin-top:12px}.item{background:#252525;border:1px solid #363636;border-radius:14px;padding:12px}.item small{color:#aaa}.item strong{font-size:17px}
+.product-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.product{background:#252525;border:1px solid #383838;border-radius:15px;padding:13px}.product button{width:100%;margin-top:8px}.price{font-weight:850;font-size:18px}
+.cart{background:#151515;border-radius:15px;padding:12px;margin-top:12px}.cart .row{padding:7px 0;border-bottom:1px solid #333}.cart .row:last-child{border:0}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #333;font-size:14px}th{color:#aaa}
+.notice{padding:12px;border-radius:12px;background:#332f18;color:#f8dc78;margin-top:10px;font-size:14px}
+</style>
+</head>
+<body>
+
+<div id="login" class="screen">
+  <div class="card">
+    <div class="logo">Pizza<span>Mar</span> 🍕</div>
+    <div class="subtitle">Sistema de gestión</div>
+    <label>Email / Usuario</label>
+    <input id="email" type="email" autocomplete="username">
+    <label>Contraseña</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <button class="btn primary" style="width:100%;margin-top:18px" onclick="login()">INGRESAR</button>
+    <button class="link" onclick="showRecovery()">¿Olvidaste tu contraseña?</button>
+    <div id="loginMsg" class="msg"></div>
+  </div>
+</div>
+
+<div id="recovery" class="screen hidden">
+  <div class="card">
+    <div class="logo">Pizza<span>Mar</span> 🍕</div>
+    <div class="subtitle">Recuperar contraseña</div>
+    <label>Email</label>
+    <input id="recoveryEmail" type="email">
+    <button class="btn primary" style="width:100%;margin-top:18px" onclick="sendRecovery()">ENVIAR ENLACE</button>
+    <button class="link" onclick="showLogin()">Volver al ingreso</button>
+    <div id="recoveryMsg" class="msg"></div>
+  </div>
+</div>
+
+<div id="reset" class="screen hidden">
+  <div class="card">
+    <div class="logo">Pizza<span>Mar</span> 🍕</div>
+    <div class="subtitle">Crear nueva contraseña</div>
+    <label>Nueva contraseña</label><input id="newPassword" type="password">
+    <label>Repetir contraseña</label><input id="newPassword2" type="password">
+    <button class="btn primary" style="width:100%;margin-top:18px" onclick="updatePassword()">GUARDAR NUEVA CONTRASEÑA</button>
+    <div id="resetMsg" class="msg"></div>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <header class="top">
+    <div><div class="brand">Pizza<span>Mar</span> 🍕</div><small id="today"></small></div>
+    <div class="top-actions"><button class="btn ghost" onclick="go('dashboard')">Inicio</button><button class="btn danger" onclick="logout()">Salir</button></div>
+  </header>
+
+  <main class="wrap">
+    <section id="dashboard" class="section active">
+      <div class="hero"><h1>Panel de control</h1><p>Resumen del mes actual y acceso rápido.</p></div>
+      <div class="panel">
+        <div class="row"><b id="summaryTitle">Resumen de septiembre</b><span class="muted" id="summaryDate"></span></div>
+        <div class="grid" style="margin-top:12px">
+          <div><span class="muted">📅 Días registrados</span><div class="big" id="homeDays">0</div></div>
+          <div><span class="muted">💰 Ventas</span><div class="big" id="homeSales">$0</div></div>
+          <div><span class="muted">💸 Gastos</span><div class="big" id="homeExpenses">$0</div></div>
+          <div><span class="muted">📊 Resultado</span><div class="big" id="homeResult">$0</div></div>
+        </div>
+      </div>
+      <div class="grid" style="margin-top:14px">
+        <button class="tile" onclick="go('orders')"><b>🧾 Nueva comanda</b><span>Cargar pedido y pago</span></button>
+        <button class="tile" onclick="go('sales')"><b>💰 Ventas</b><span>Ver pedidos y facturación</span></button>
+        <button class="tile" onclick="go('stats')"><b>📊 Estadísticas</b><span>Analizar el mes</span></button>
+        <button class="tile" onclick="go('products')"><b>📦 Productos</b><span>Precios y catálogo</span></button>
+        <button class="tile" onclick="go('expenses')"><b>💸 Gastos</b><span>Cargar y consultar gastos</span></button>
+        <button class="tile" onclick="go('settings')"><b>⚙️ Configuración</b><span>Cuenta y sistema</span></button>
+      </div>
+    </section>
+
+    <section id="orders" class="section">
+      <button class="btn ghost back" onclick="go('dashboard')">← Volver</button>
+      <h2>🧾 Nueva comanda</h2>
+      <div class="two">
+        <div class="panel">
+          <div class="row"><b>Productos</b><span class="muted">Tocá para agregar</span></div>
+          <div id="productButtons" class="product-grid" style="margin-top:12px"></div>
+        </div>
+        <div class="panel">
+          <b>Pedido</b>
+          <div id="cart" class="cart">Todavía no agregaste productos.</div>
+          <div class="row" style="margin-top:12px"><b>Total</b><b class="big" id="cartTotal">$0</b></div>
+          <label>Cliente</label><input id="customer" placeholder="Nombre">
+          <label>Forma de pago</label>
+          <select id="payment"><option>Efectivo</option><option>Transferencia</option><option>Mercado Pago</option></select>
+          <button class="btn primary" style="width:100%;margin-top:14px" onclick="saveOrder()">GUARDAR COMANDA</button>
+          <div id="orderMsg" class="msg"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sales" class="section">
+      <button class="btn ghost back" onclick="go('dashboard')">← Volver</button>
+      <h2>💰 Ventas</h2>
+      <div class="panel">
+        <div class="grid">
+          <div><span class="muted">Ventas del mes</span><div class="big" id="salesTotal">$0</div></div>
+          <div><span class="muted">Pedidos</span><div class="big" id="salesCount">0</div></div>
+          <div><span class="muted">Ticket promedio</span><div class="big" id="avgTicket">$0</div></div>
+        </div>
+      </div>
+      <div class="panel"><div class="row"><b>Últimos pedidos</b><button class="btn ghost" onclick="loadSales()">Actualizar</button></div><div id="salesList" class="list"></div></div>
+    </section>
+
+    <section id="expenses" class="section">
+      <button class="btn ghost back" onclick="go('dashboard')">← Volver</button>
+      <h2>💸 Gastos</h2>
+      <div class="panel">
+        <div class="two">
+          <div><label>Concepto</label><input id="expenseName" placeholder="Ej. Harina"></div>
+          <div><label>Importe</label><input id="expenseAmount" type="number" min="0" step="0.01" placeholder="0"></div>
+        </div>
+        <button class="btn primary" style="margin-top:14px" onclick="saveExpense()">REGISTRAR GASTO</button>
+        <div id="expenseMsg" class="msg"></div>
+      </div>
+      <div class="panel"><div class="row"><b>Gastos del mes</b><b id="expenseTotal">$0</b></div><div id="expenseList" class="list"></div></div>
+    </section>
+
+    <section id="stats" class="section">
+      <button class="btn ghost back" onclick="go('dashboard')">← Volver</button>
+      <h2>📊 Estadísticas</h2>
+      <div class="panel">
+        <div class="grid">
+          <div><span class="muted">Facturación</span><div class="big" id="stSales">$0</div></div>
+          <div><span class="muted">Gastos</span><div class="big" id="stExpenses">$0</div></div>
+          <div><span class="muted">Resultado</span><div class="big" id="stResult">$0</div></div>
+          <div><span class="muted">Ticket promedio</span><div class="big" id="stTicket">$0</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <b>Ventas por forma de pago</b>
+        <div id="paymentStats" class="list"></div>
+      </div>
+      <div class="notice">La comparación mes a mes y los productos más vendidos se habilitan automáticamente cuando agreguemos el registro detallado de artículos de cada comanda.</div>
+    </section>
+
+    <section id="products" class="section">
+      <button class="btn ghost back" onclick="go('dashboard')">← Volver</button>
+      <h2>📦 Productos</h2>
+      <div class="panel"><p class="muted">Los precios de este catálogo se guardan en este dispositivo. La facturación y los gastos siguen guardándose en Supabase.</p><div id="productManager" class="list"></div></div>
+    </section>
+
+    <section id="settings" class="section">
+      <button class="btn ghost back" onclick="go('dashboard')">← Volver</button>
+      <h2>⚙️ Configuración</h2>
+      <div class="panel"><b>PizzaMar</b><p class="muted">Sistema de gestión de ventas y gastos.</p><p class="muted">Base de datos: Supabase · Publicación: Vercel</p></div>
+      <div class="panel"><b>Sesión</b><button class="btn danger" style="margin-top:12px" onclick="logout()">Cerrar sesión</button></div>
+    </section>
+  </main>
+</div>
+
+<script>
+const SUPABASE_URL="https://nqfyxdptyqviyqlkulzq.supabase.co";
+const SUPABASE_KEY="sb_publishable_79TQSkWMhsZ8DJldFxAIxA_cubFt0l-";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const defaultProducts=[
+["Muzza",11000],["Muzza doble",12500],["Panceta ahumada",16500],["Súper especial",17000],
+["Choclo con huevo y tomate",15000],["PizzaPay",13000],["Fugazzeta",13000],["Jamón y morrón",14500],
+["Jamón y morrón con huevo",15000],["Caprese",14000],["Jamón y tomate",14500],["Jamón y huevo",14500],
+["Albahaca y Cherry",14000],["Rúcula, jamón crudo y parmesano",16000],["Huevo",13000],["Salchi & Huevo",14500],
+["Roquefort",14500],["Cochina",16000],["Anchoas",14500],["Especial de anchoas",15000],["Jamón",12500],
+["Choclo",13500],["Napolitana",13500],["Empanada carne x12",23000],["Empanada carne x6",13000],
+["Empanada carne unidad",2500],["Empanada pollo x12",21000],["Empanada pollo x6",12000],
+["Empanada pollo unidad",2000],["Empanada JyQ x12",19000],["Empanada JyQ x6",10800],["Empanada JyQ unidad",1800],
+["Hamburguesa cheddar+panceta simple",9500],["Hamburguesa cheddar+panceta doble",12000],["Hamburguesa cheddar+panceta triple",14500],
+["Hamburguesa completa",12500],["Coca 2.25L",6000],["Coca 1.25L",4500],["Coca lata",2000],["Coca 600ml",2500],
+["Cepita",3500],["Manaos",2000],["Schneider 710ml",4500],["Brahma lata",3000],["Milanesa con fritas",23000],["Porción fritas",3500]
+];
+let products=JSON.parse(localStorage.getItem("pizzamar_products")||"null")||defaultProducts;
+let cart=[];
+
+const money=n=>"$"+Number(n||0).toLocaleString("es-AR",{minimumFractionDigits:0,maximumFractionDigits:2});
+const monthBounds=()=>{const n=new Date();return [new Date(n.getFullYear(),n.getMonth(),1).toISOString(),new Date(n.getFullYear(),n.getMonth()+1,1).toISOString()]};
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function showLogin(){login.classList.remove("hidden");recovery.classList.add("hidden");reset.classList.add("hidden")}
+function showRecovery(){login.classList.add("hidden");recovery.classList.remove("hidden");reset.classList.add("hidden");recoveryEmail.value=email.value}
+function showReset(){login.classList.add("hidden");recovery.classList.add("hidden");reset.classList.remove("hidden")}
+function setMsg(id,text,color){const e=document.getElementById(id);e.textContent=text;e.style.color=color||""}
+async function login(){
+setMsg("loginMsg","");
+const em=email.value.trim(),pw=password.value;
+if(!em||!pw){setMsg("loginMsg","Completá email y contraseña.");return}
+const {error}=await db.auth.signInWithPassword({email:em,password:pw});
+if(error){setMsg("loginMsg",error.message);return}
+openApp();
+}
+async function sendRecovery(){
+const em=recoveryEmail.value.trim();if(!em){setMsg("recoveryMsg","Ingresá tu email.");return}
+const {error}=await db.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
+setMsg("recoveryMsg",error?error.message:"Te enviamos un enlace para crear una nueva contraseña.",error?"#ff9292":"#72e6a3");
+}
+async function updatePassword(){
+const p1=newPassword.value,p2=newPassword2.value;
+if(p1.length<6){setMsg("resetMsg","La contraseña debe tener al menos 6 caracteres.");return}
+if(p1!==p2){setMsg("resetMsg","Las contraseñas no coinciden.");return}
+const {error}=await db.auth.updateUser({password:p1});
+if(error){setMsg("resetMsg",error.message);return}
+setMsg("resetMsg","Contraseña actualizada. Entrando a PizzaMar...","#72e6a3");
+setTimeout(openApp,700);
+}
+async function logout(){await db.auth.signOut();location.reload()}
+function openApp(){login.classList.add("hidden");recovery.classList.add("hidden");reset.classList.add("hidden");app.classList.remove("hidden");today.textContent=new Date().toLocaleDateString("es-AR");loadSummary()}
+function go(id){document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");if(id==="sales")loadSales();if(id==="expenses")loadExpenses();if(id==="stats")loadStats();if(id==="products")renderProductManager();if(id==="orders")renderProductButtons();window.scrollTo(0,0)}
+function renderProductButtons(){
+productButtons.innerHTML=products.map((p,i)=>`<button class="product" onclick="addProduct(${i})"><b>${esc(p[0])}</b><div class="price">${money(p[1])}</div></button>`).join("");
+}
+function addProduct(i){cart.push(products[i]);renderCart()}
+function renderCart(){
+if(!cart.length){cart.innerHTML="Todavía no agregaste productos.";cartTotal.textContent="$0";return}
+cart.innerHTML=cart.map((p,i)=>`<div class="row"><span>${esc(p[0])}</span><span><b>${money(p[1])}</b> <button class="btn danger" style="padding:5px 8px" onclick="removeCart(${i})">×</button></span></div>`).join("");
+cartTotal.textContent=money(cart.reduce((s,p)=>s+Number(p[1]),0));
+}
+function removeCart(i){cart.splice(i,1);renderCart()}
+async function saveOrder(){
+if(!cart.length){setMsg("orderMsg","Agregá al menos un producto.");return}
+const {data:{user}}=await db.auth.getUser();if(!user){showLogin();return}
+const total=cart.reduce((s,p)=>s+Number(p[1]),0);
+const {error}=await db.from("orders").insert({customer_name:customer.value.trim()||"Sin nombre",payment_method:payment.value,total,status:"pending",user_id:user.id});
+if(error){setMsg("orderMsg",error.message);return}
+cart=[];renderCart();customer.value="";setMsg("orderMsg","Comanda guardada correctamente.","#72e6a3");loadSummary();
+}
+async function saveExpense(){
+const name=expenseName.value.trim(),amount=Number(expenseAmount.value);
+if(!name||!amount){setMsg("expenseMsg","Completá concepto e importe.");return}
+const {data:{user}}=await db.auth.getUser();if(!user){showLogin();return}
+const {error}=await db.from("expenses").insert({concept:name,amount,user_id:user.id});
+if(error){setMsg("expenseMsg",error.message);return}
+expenseName.value="";expenseAmount.value="";setMsg("expenseMsg","Gasto registrado correctamente.","#72e6a3");loadSummary();loadExpenses();
+}
+async function loadSummary(){
+const [start,end]=monthBounds();
+const [{data:orders,error:oe},{data:expenses,error:ee}]=await Promise.all([
+db.from("orders").select("total,created_at").gte("created_at",start).lt("created_at",end),
+db.from("expenses").select("amount,created_at").gte("created_at",start).lt("created_at",end)
+]);
+if(oe||ee){console.error(oe||ee);return}
+const sales=(orders||[]).reduce((s,x)=>s+Number(x.total),0),ex=(expenses||[]).reduce((s,x)=>s+Number(x.amount),0);
+const days=new Set([...(orders||[]),...(expenses||[])].map(x=>new Date(x.created_at).toLocaleDateString("es-AR")));
+const now=new Date();summaryTitle.textContent="Resumen de "+now.toLocaleDateString("es-AR",{month:"long"});summaryDate.textContent=now.toLocaleDateString("es-AR");
+homeDays.textContent=days.size;homeSales.textContent=money(sales);homeExpenses.textContent=money(ex);homeResult.textContent=money(sales-ex);
+salesTotal.textContent=money(sales);salesCount.textContent=(orders||[]).length+" pedidos";
+}
+async function loadSales(){
+const [start,end]=monthBounds();
+const {data,error}=await db.from("orders").select("id,created_at,customer_name,payment_method,total,status").gte("created_at",start).lt("created_at",end).order("created_at",{ascending:false});
+if(error){salesList.innerHTML=`<div class="item">${esc(error.message)}</div>`;return}
+const total=(data||[]).reduce((s,x)=>s+Number(x.total),0);salesTotal.textContent=money(total);salesCount.textContent=(data||[]).length+" pedidos";avgTicket.textContent=money((data||[]).length?total/data.length:0);
+salesList.innerHTML=(data||[]).slice(0,100).map(x=>`<div class="item"><div class="row"><strong>${money(x.total)}</strong><span class="muted">${new Date(x.created_at).toLocaleString("es-AR")}</span></div><small>${esc(x.customer_name||"Sin nombre")} · ${esc(x.payment_method||"")} · ${esc(x.status||"pending")}</small></div>`).join("")||'<div class="item muted">No hay pedidos este mes.</div>';
+}
+async function loadExpenses(){
+const [start,end]=monthBounds();
+const {data,error}=await db.from("expenses").select("id,created_at,concept,amount").gte("created_at",start).lt("created_at",end).order("created_at",{ascending:false});
+if(error){expenseList.innerHTML=`<div class="item">${esc(error.message)}</div>`;return}
+const total=(data||[]).reduce((s,x)=>s+Number(x.amount),0);expenseTotal.textContent=money(total);
+expenseList.innerHTML=(data||[]).slice(0,100).map(x=>`<div class="item"><div class="row"><strong>${money(x.amount)}</strong><span class="muted">${new Date(x.created_at).toLocaleDateString("es-AR")}</span></div><small>${esc(x.concept)}</small></div>`).join("")||'<div class="item muted">No hay gastos este mes.</div>';
+}
+async function loadStats(){
+const [start,end]=monthBounds();
+const {data:orders}=await db.from("orders").select("total,payment_method").gte("created_at",start).lt("created_at",end);
+const {data:expenses}=await db.from("expenses").select("amount").gte("created_at",start).lt("created_at",end);
+const sales=(orders||[]).reduce((s,x)=>s+Number(x.total),0),ex=(expenses||[]).reduce((s,x)=>s+Number(x.amount),0);
+stSales.textContent=money(sales);stExpenses.textContent=money(ex);stResult.textContent=money(sales-ex);stResult.className="big "+(sales-ex>=0?"positive":"negative");stTicket.textContent=money((orders||[]).length?sales/orders.length:0);
+const map={};(orders||[]).forEach(x=>map[x.payment_method]=(map[x.payment_method]||0)+Number(x.total));
+paymentStats.innerHTML=Object.entries(map).map(([k,v])=>`<div class="item row"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join("")||'<div class="item muted">Sin ventas.</div>';
+}
+function renderProductManager(){
+productManager.innerHTML=products.map((p,i)=>`<div class="item"><div class="row"><b>${esc(p[0])}</b><input id="price_${i}" type="number" value="${p[1]}" style="max-width:140px"></div><button class="btn ghost" onclick="changePrice(${i})">Guardar precio</button></div>`).join("");
+}
+function changePrice(i){const v=Number(document.getElementById("price_"+i).value);if(v>0){products[i][1]=v;localStorage.setItem("pizzamar_products",JSON.stringify(products));renderProductButtons();renderProductManager()}}
+db.auth.onAuthStateChange((event,session)=>{if(event==="PASSWORD_RECOVERY")showReset();else if(session&&!app.classList.contains("hidden"))loadSummary()});
+(async()=>{const {data:{session}}=await db.auth.getSession();if(session)openApp();renderProductButtons()})();
+</script>
+</body>
+</html>
