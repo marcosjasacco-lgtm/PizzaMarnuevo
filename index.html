@@ -277,9 +277,56 @@ async function openApp(){
   loadSummary();
 }
 function go(id){document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");if(id==="sales")loadSales();if(id==="expenses")loadExpenses();if(id==="stats")loadStats();if(id==="products")renderProductManager();if(id==="orders")renderProductButtons();window.scrollTo(0,0)}
-function renderProductButtons(){
-productButtons.innerHTML=products.map((p,i)=>`<button class="product" onclick="addProduct(${i})"><b>${esc(p[0])}</b><div class="price">${money(p[1])}</div></button>`).join("");
+async function renderProductButtons(){
+  const {data,error}=await db.from("products")
+    .select("name,price,category")
+    .eq("active",true)
+    .order("category")
+    .order("name");
+
+  if(error){
+    console.error(error);
+    return;
+  }
+
+  products=(data||[]).map(p=>[p.name,Number(p.price),p.category]);
+
+  productButtons.innerHTML=products.map((p,i)=>
+    `<button class="product" onclick="addProduct(${i})">
+      <b>${esc(p[0])}</b>
+      <div class="price">${money(p[1])}</div>
+    </button>`
+  ).join("");
 }
+async function addNewProduct(){
+  const name=newProductName.value.trim();
+  const price=Number(newProductPrice.value);
+  const category=newProductCategory.value;
+
+  if(!name || !price){
+    setMsg("productMsg","Completá nombre y precio.");
+    return;
+  }
+
+  const {error}=await db.from("products").insert({
+    name:name,
+    price:price,
+    category:category,
+    active:true
+  });
+
+  if(error){
+    setMsg("productMsg",error.message);
+    return;
+  }
+
+  newProductName.value="";
+  newProductPrice.value="";
+  setMsg("productMsg","Producto agregado correctamente.","#72e6a3");
+
+  await renderProductButtons();
+  renderProductManager();
+}  
 function addProduct(i){cart.push(products[i]);renderCart()}
 function renderCart(){
 if(!cart.length){cart.innerHTML="Todavía no agregaste productos.";cartTotal.textContent="$0";return}
