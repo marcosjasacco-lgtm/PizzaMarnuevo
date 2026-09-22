@@ -413,8 +413,26 @@ paymentStats.innerHTML=Object.entries(map).map(([k,v])=>`<div class="item row"><
 }
 function renderProductManager(){
 productManager.innerHTML=products.map((p,i)=>`<div class="item"><div class="row"><b>${esc(p[0])}</b><input id="price_${i}" type="number" value="${p[1]}" style="max-width:140px"></div><button class="btn ghost" onclick="changePrice(${i})">Guardar precio</button></div>`).join("");
+}async function changePrice(i){
+  const v=Number(document.getElementById("price_"+i).value);
+
+  if(v<=0)return;
+
+  const name=products[i][0];
+
+  const {error}=await db.from("products")
+    .update({price:v})
+    .eq("name",name);
+
+  if(error){
+    alert("Error al guardar precio: "+error.message);
+    return;
+  }
+
+  products[i][1]=v;
+  await renderProductButtons();
+  renderProductManager();
 }
-function changePrice(i){const v=Number(document.getElementById("price_"+i).value);if(v>0){products[i][1]=v;localStorage.setItem("pizzamar_products",JSON.stringify(products));renderProductButtons();renderProductManager()}}
 db.auth.onAuthStateChange((event,session)=>{if(event==="PASSWORD_RECOVERY")showReset();else if(session&&!app.classList.contains("hidden"))loadSummary()});
 (async()=>{const {data:{session}}=await db.auth.getSession();if(session)openApp();renderProductButtons()})();
 </script>
