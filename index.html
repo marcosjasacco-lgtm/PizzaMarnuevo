@@ -173,6 +173,31 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
     <section id="products" class="section">
       <button class="btn ghost back" onclick="go('dashboard')">← Volver</button>
       <h2>📦 Productos</h2>
+      <div class="panel">
+  <h3>➕ Agregar producto</h3>
+
+  <label>Nombre</label>
+  <input id="newProductName" placeholder="Ej. Pizza primavera">
+
+  <label>Precio</label>
+  <input id="newProductPrice" type="number" min="0" placeholder="Ej. 15000">
+
+  <label>Categoría</label>
+  <select id="newProductCategory">
+    <option>Pizza</option>
+    <option>Empanadas</option>
+    <option>Hamburguesas</option>
+    <option>Bebidas</option>
+    <option>Promociones</option>
+    <option>Otros</option>
+  </select>
+
+  <button class="btn primary" style="width:100%;margin-top:14px" onclick="addNewProduct()">
+    GUARDAR PRODUCTO
+  </button>
+
+  <div id="productMsg" class="msg"></div>
+      </div>
       <div class="panel"><p class="muted">Los precios de este catálogo se guardan en este dispositivo. La facturación y los gastos siguen guardándose en Supabase.</p><div id="productManager" class="list"></div></div>
     </section>
 
