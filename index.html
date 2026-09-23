@@ -390,7 +390,26 @@ async function editOrder(id){
   renderCart();
   go("orders");
 } 
-async function saveOrder(){
+async function deleteOrder(id){
+  const confirmar=confirm("¿Seguro que querés eliminar este pedido? Esta acción no se puede deshacer.");
+
+  if(!confirmar)return;
+
+  const {error}=await db.from("orders")
+    .delete()
+    .eq("id",id);
+
+  if(error){
+    alert("No se pudo eliminar el pedido: "+error.message);
+    return;
+  }
+
+  await loadSales();
+  await loadSummary();
+
+  alert("Pedido eliminado correctamente.");
+}
+  async function saveOrder(){
   if(!cart.length){
     setMsg("orderMsg","Agregá al menos un producto.");
     return;
@@ -498,7 +517,11 @@ salesList.innerHTML=(data||[]).slice(0,100).map(x=>`
     <button class="btn ghost" style="margin-top:10px"
       onclick="editOrder(${x.id})">
       ✏️ Editar pedido
-    </button>
+ </button>
+ <button class="btn danger admin-only" style="margin-top:10px;margin-left:8px"
+  onclick="deleteOrder(${x.id})">
+  🗑️ Eliminar pedido
+</button>   
   </div>
 `).join("") || '<div class="item muted">No hay pedidos este mes.</div>';}
 async function loadExpenses(){
