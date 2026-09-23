@@ -363,7 +363,18 @@ async function saveOrder(){
 if(!cart.length){setMsg("orderMsg","Agregá al menos un producto.");return}
 const {data:{user}}=await db.auth.getUser();if(!user){showLogin();return}
 const total=cart.reduce((s,p)=>s+Number(p[1]),0);
-const {error}=await db.from("orders").insert({customer_name:customer.value.trim()||"Sin nombre",payment_method:payment.value,total,status:"pending",user_id:user.id});
+const {error}=await db.from("orders").insert({
+  customer_name:customer.value.trim()||"Sin nombre",
+  payment_method:payment.value,
+  total:total,
+  status:"pending",
+  user_id:user.id,
+  items:cart.map(p=>({
+    name:p[0],
+    price:Number(p[1]),
+    category:p[2]||null
+  }))
+});
 if(error){setMsg("orderMsg",error.message);return}
 cart=[];renderCart();customer.value="";setMsg("orderMsg","Comanda guardada correctamente.","#72e6a3");loadSummary();
 }
