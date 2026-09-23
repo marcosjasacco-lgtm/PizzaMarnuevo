@@ -85,15 +85,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
   <main class="wrap">
     <section id="dashboard" class="section active">
       <div class="hero"><h1>Panel de control</h1><p>Resumen del mes actual y acceso rápido.</p></div>
-      <div class="panel">
-        <div class="row"><b id="summaryTitle">Resumen de septiembre</b><span class="muted" id="summaryDate"></span></div>
-        <div class="grid" style="margin-top:12px">
-          <div><span class="muted">📅 Días registrados</span><div class="big" id="homeDays">0</div></div>
-          <div><span class="muted">💰 Ventas</span><div class="big" id="homeSales">$0</div></div>
-          <div><span class="muted">💸 Gastos</span><div class="big" id="homeExpenses">$0</div></div>
-          <div><span class="muted">📊 Resultado</span><div class="big" id="homeResult">$0</div></div>
-        </div>
-      </div>
+      
       <div id="dashboardGrid" class="grid" style="margin-top:14px">
         <button class="tile" onclick="go('orders')"><b>🧾 Nueva comanda</b><span>Cargar pedido y pago</span></button>
         <button class="tile admin-only" onclick="go('sales')"><b>💰 Ventas</b><span>Ver pedidos y facturación</span></button>
@@ -152,9 +144,18 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
       <div class="panel"><div class="row"><b>Gastos del mes</b><b id="expenseTotal">$0</b></div><div id="expenseList" class="list"></div></div>
     </section>
 
-    <section id="stats" class="section">
+    <section id="stats" class="section admin-only">
       <button class="btn ghost back" onclick="go('dashboard')">← Volver</button>
       <h2>📊 Estadísticas</h2>
+        <div class="panel">
+        <div class="row"><b id="summaryTitle">Resumen de septiembre</b><span class="muted" id="summaryDate"></span></div>
+        <div class="grid" style="margin-top:12px">
+          <div><span class="muted">📅 Días registrados</span><div class="big" id="homeDays">0</div></div>
+          <div><span class="muted">💰 Ventas</span><div class="big" id="homeSales">$0</div></div>
+          <div><span class="muted">💸 Gastos</span><div class="big" id="homeExpenses">$0</div></div>
+          <div><span class="muted">📊 Resultado</span><div class="big" id="homeResult">$0</div></div>
+        </div>
+      </div>
       <div class="panel">
         <div class="grid">
           <div><span class="muted">Facturación</span><div class="big" id="stSales">$0</div></div>
