@@ -237,6 +237,7 @@ let products=JSON.parse(localStorage.getItem("pizzamar_products")||"[]");
 defaultProducts.forEach(p=>{if(!products.some(x=>x[0]===p[0]))products.push(p)});
 localStorage.setItem("pizzamar_products",JSON.stringify(products));
 let cart=[];
+let editingOrderId=null; 
 
 const money=n=>"$"+Number(n||0).toLocaleString("es-AR",{minimumFractionDigits:0,maximumFractionDigits:2});
 const monthBounds=()=>{const n=new Date();return [new Date(n.getFullYear(),n.getMonth(),1).toISOString(),new Date(n.getFullYear(),n.getMonth()+1,1).toISOString()]};
@@ -359,24 +360,101 @@ cart.innerHTML=cart.map((p,i)=>`<div class="row"><span>${esc(p[0])}</span><span>
 cartTotal.textContent=money(cart.reduce((s,p)=>s+Number(p[1]),0));
 }
 function removeCart(i){cart.splice(i,1);renderCart()}
+async function editOrder(id){
+  const {data,error}=await db.from("orders")
+    .select("id,customer_name,payment_method,items")
+    .eq("id",id)
+    .single();
+
+  if(error){
+    alert("No se pudo abrir el pedido: "+error.message);
+    return;
+  }
+
+  if(!data.items || !data.items.length){
+    alert("Este pedido es anterior al sistema de edición y no tiene el detalle de productos guardado.");
+    return;
+  }
+
+  editingOrderId=data.id;
+
+  cart=data.items.map(p=>[
+    p.name,
+    Number(p.price),
+    p.category||null
+  ]);
+
+  customer.value=data.customer_name||"";
+  payment.value=data.payment_method||"Efectivo";
+
+  renderCart();
+  go("orders");
+} 
 async function saveOrder(){
-if(!cart.length){setMsg("orderMsg","Agregá al menos un producto.");return}
-const {data:{user}}=await db.auth.getUser();if(!user){showLogin();return}
-const total=cart.reduce((s,p)=>s+Number(p[1]),0);
-const {error}=await db.from("orders").insert({
-  customer_name:customer.value.trim()||"Sin nombre",
-  payment_method:payment.value,
-  total:total,
-  status:"pending",
-  user_id:user.id,
-  items:cart.map(p=>({
+  if(!cart.length){
+    setMsg("orderMsg","Agregá al menos un producto.");
+    return;
+  }
+
+  const {data:{user}}=await db.auth.getUser();
+  if(!user){
+    showLogin();
+    return;
+  }
+
+  const total=cart.reduce((s,p)=>s+Number(p[1]),0);
+
+  const items=cart.map(p=>({
     name:p[0],
     price:Number(p[1]),
     category:p[2]||null
-  }))
-});
-if(error){setMsg("orderMsg",error.message);return}
-cart=[];renderCart();customer.value="";setMsg("orderMsg","Comanda guardada correctamente.","#72e6a3");loadSummary();
+  }));
+
+  const wasEditing=editingOrderId!==null;
+  let result;
+
+  if(wasEditing){
+    result=await db.from("orders").update({
+      customer_name:customer.value.trim()||"Sin nombre",
+      payment_method:payment.value,
+      total:total,
+      items:items,
+      edited_at:new Date().toISOString(),
+      edited_by:user.id
+    }).eq("id",editingOrderId);
+  }else{
+    result=await db.from("orders").insert({
+      customer_name:customer.value.trim()||"Sin nombre",
+      payment_method:payment.value,
+      total:total,
+      status:"pending",
+      user_id:user.id,
+      items:items
+    });
+  }
+
+  if(result.error){
+    setMsg("orderMsg",result.error.message);
+    return;
+  }
+
+  editingOrderId=null;
+  cart=[];
+  renderCart();
+  customer.value="";
+
+  setMsg(
+    "orderMsg",
+    wasEditing ? "Pedido actualizado correctamente." : "Comanda guardada correctamente.",
+    "#72e6a3"
+  );
+
+  loadSummary();
+
+  if(wasEditing){
+    await loadSales();
+    go("sales");
+  }
 }
 async function saveExpense(){
 const name=expenseName.value.trim(),amount=Number(expenseAmount.value);
@@ -404,8 +482,25 @@ const [start,end]=monthBounds();
 const {data,error}=await db.from("orders").select("id,created_at,customer_name,payment_method,total,status").gte("created_at",start).lt("created_at",end).order("created_at",{ascending:false});
 if(error){salesList.innerHTML=`<div class="item">${esc(error.message)}</div>`;return}
 const total=(data||[]).reduce((s,x)=>s+Number(x.total),0);salesTotal.textContent=money(total);salesCount.textContent=(data||[]).length+" pedidos";avgTicket.textContent=money((data||[]).length?total/data.length:0);
-salesList.innerHTML=(data||[]).slice(0,100).map(x=>`<div class="item"><div class="row"><strong>${money(x.total)}</strong><span class="muted">${new Date(x.created_at).toLocaleString("es-AR")}</span></div><small>${esc(x.customer_name||"Sin nombre")} · ${esc(x.payment_method||"")} · ${esc(x.status||"pending")}</small></div>`).join("")||'<div class="item muted">No hay pedidos este mes.</div>';
-}
+salesList.innerHTML=(data||[]).slice(0,100).map(x=>`
+  <div class="item">
+    <div class="row">
+      <strong>${money(x.total)}</strong>
+      <span class="muted">${new Date(x.created_at).toLocaleString("es-AR")}</span>
+    </div>
+
+    <small>
+      ${esc(x.customer_name||"Sin nombre")} ·
+      ${esc(x.payment_method||"")} ·
+      ${esc(x.status||"pending")}
+    </small>
+
+    <button class="btn ghost" style="margin-top:10px"
+      onclick="editOrder(${x.id})">
+      ✏️ Editar pedido
+    </button>
+  </div>
+`).join("") || '<div class="item muted">No hay pedidos este mes.</div>';}
 async function loadExpenses(){
 const [start,end]=monthBounds();
 const {data,error}=await db.from("expenses").select("id,created_at,concept,amount").gte("created_at",start).lt("created_at",end).order("created_at",{ascending:false});
