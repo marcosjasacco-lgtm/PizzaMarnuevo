@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>PizzaMar · Sistema de gestión</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./pm-api.js"></script>
 <style>
 :root{--red:#ef3b3b;--red2:#ff5a5a;--dark:#171717;--panel:#202020;--panel2:#292929;--text:#f5f5f5;--muted:#aaa;--line:#383838;--green:#63d49a;--yellow:#f4c95d}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--text);background:#111}
@@ -35,6 +36,7 @@ label{display:block;color:#bbb;font-size:14px;margin:14px 0 7px}input,select{wid
 .cart{background:#151515;border-radius:15px;padding:12px;margin-top:12px}.cart .row{padding:7px 0;border-bottom:1px solid #333}.cart .row:last-child{border:0}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #333;font-size:14px}th{color:#aaa}
 .notice{padding:12px;border-radius:12px;background:#332f18;color:#f8dc78;margin-top:10px;font-size:14px}
+.online-order{border-left:4px solid var(--red)}.online-order.pending{border-left-color:var(--yellow)}.online-order.preparing{border-left-color:#72b7ff}.online-order.ready{border-left-color:var(--green)}.online-order.picked_up{border-left-color:#b88cff}.online-order.delivered{border-left-color:#777}.online-order.rejected{border-left-color:#8d3c3c;opacity:.82}.status-pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;background:#333;color:#fff;font-size:12px;font-weight:800}.online-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.online-actions .btn{padding:10px 12px}.order-meta{color:#bbb;font-size:13px;line-height:1.5}.order-items{margin:10px 0;padding:10px;background:#151515;border-radius:12px}.online-empty{padding:18px;text-align:center;color:#aaa}
 </style>
 </head>
 <body>
@@ -88,12 +90,20 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
       
       <div id="dashboardGrid" class="grid" style="margin-top:14px">
         <button class="tile" onclick="go('orders')"><b>🧾 Nueva comanda</b><span>Cargar pedido y pago</span></button>
+        <button class="tile" onclick="go('onlineOrders')"><b>📲 Pedidos online</b><span>Aceptar y seguir pedidos de clientes</span></button>
         <button class="tile admin-only" onclick="go('sales')"><b>💰 Ventas</b><span>Ver pedidos y facturación</span></button>
         <button class="tile admin-only" onclick="go('stats')"><b>📊 Estadísticas</b><span>Analizar el mes</span></button>
         <button class="tile admin-only" onclick="go('products')"><b>📦 Productos</b><span>Precios y catálogo</span></button>
         <button class="tile admin-only" onclick="go('expenses')"><b>💸 Gastos</b><span>Cargar y consultar gastos</span></button>
         <button class="tile admin-only" onclick="go('settings')"><b>⚙️ Configuración</b><span>Cuenta y sistema</span></button>
       </div>
+    </section>
+
+    <section id="onlineOrders" class="section">
+      <button class="btn ghost back" onclick="go('dashboard')">← Volver</button>
+      <div class="row"><div><h2 style="margin:0">📲 Pedidos online</h2><p class="muted" style="margin-top:6px">Los pedidos se actualizan automáticamente.</p></div><button class="btn ghost" onclick="loadOnlineOrders(true)">Actualizar</button></div>
+      <div id="onlineOrdersMsg" class="msg"></div>
+      <div id="onlineOrderList" class="list"></div>
     </section>
 
     <section id="orders" class="section">
@@ -215,6 +225,8 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
 const SUPABASE_URL="https://nqfyxdptyqviyqlkulzq.supabase.co";
 const SUPABASE_KEY="sb_publishable_79TQSkWMhsZ8DJldFxAIxA_cubFt0l-";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const pmOnline=window.PizzaMarOnline(db);
+let onlinePoll=null;
 
 const defaultProducts=[
 ["Muzza",11000],["Muzza doble",12500],["Panceta ahumada",16500],["Súper especial",17000],
@@ -290,7 +302,7 @@ if(error){setMsg("resetMsg",error.message);return}
 setMsg("resetMsg","Contraseña actualizada. Entrando a PizzaMar...","#72e6a3");
 setTimeout(openApp,700);
 }
-async function logout(){await db.auth.signOut();location.reload()}
+async function logout(){if(onlinePoll)clearInterval(onlinePoll);await db.auth.signOut();location.reload()}
 async function openApp(){
   const {data:{user}} = await db.auth.getUser();
   const role = user?.app_metadata?.role || "employee";
@@ -302,8 +314,10 @@ async function openApp(){
   document.getElementById("today").textContent=new Date().toLocaleDateString("es-AR");
   renderProductButtons();
   loadSummary();
+  if(onlinePoll)clearInterval(onlinePoll);
+  onlinePoll=setInterval(()=>{if(!document.getElementById("app").classList.contains("hidden"))loadOnlineOrders(false)},8000);
 }
-function go(id){document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");if(id==="sales")loadSales();if(id==="expenses")loadExpenses();if(id==="stats")loadStats();if(id==="products")renderProductManager();if(id==="orders")renderProductButtons();window.scrollTo(0,0)}
+function go(id){document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");if(id==="sales")loadSales();if(id==="expenses")loadExpenses();if(id==="stats")loadStats();if(id==="products")renderProductManager();if(id==="orders")renderProductButtons();if(id==="onlineOrders")loadOnlineOrders(true);window.scrollTo(0,0)}
 async function renderProductButtons(){
   const {data,error}=await db.from("products")
     .select("name,price,category")
@@ -475,6 +489,54 @@ async function deleteOrder(id){
     await loadSales();
     go("sales");
   }
+}
+function onlineStatusKey(status){
+  return String(status||"pending").toLowerCase().replace(/[ -]+/g,"_");
+}
+function onlineStatusLabel(status){
+  const key=onlineStatusKey(status);
+  return ({pending:"Pendiente",accepted:"En preparación",preparing:"En preparación",ready:"Pedido listo",picked_up:"En camino",in_transit:"En camino",delivered:"Entregado / finalizado",rejected:"Rechazado"})[key]||status||"Pendiente";
+}
+function onlineItemText(order){
+  return (order.items||[]).map(item=>`${Number(item.quantity||1)} × ${esc(item.name)}${item.notes?` · ${esc(item.notes)}`:""}`).join("<br>")||"Detalle no disponible";
+}
+function onlineOrderActions(order){
+  const key=onlineStatusKey(order.status),id=String(order.id||"").replace(/'/g,"\\'");
+  if(key==="pending")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','preparing','Aceptar pedido')">✅ Aceptar y preparar</button><button class="btn danger" onclick="moveOnlineOrder('${id}','rejected','Rechazar pedido')">✕ Rechazar</button>`;
+  if(key==="accepted"||key==="preparing")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','ready','Pedido listo')">🍕 Pedido listo</button>`;
+  if(key==="ready")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','picked_up','Marcar retirado')">🛵 Marcar retirado</button>`;
+  if(key==="picked_up"||key==="in_transit")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','delivered','Marcar entregado')">✅ Marcar entregado</button>`;
+  return "";
+}
+async function loadOnlineOrders(showErrors=true){
+  const {data,error}=await pmOnline.listStaffOrders();
+  if(error){if(showErrors)onlineOrdersMsg.textContent="No se pudieron cargar los pedidos online: "+(error.message||error);return}
+  const rows=(data||[]).filter(x=>x&&x.id!=null).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const active=rows.filter(x=>!["delivered","rejected"].includes(onlineStatusKey(x.status)));
+  const finished=rows.filter(x=>["delivered","rejected"].includes(onlineStatusKey(x.status))).slice(0,10);
+  const visible=[...active,...finished];
+  onlineOrdersMsg.textContent="";
+  if(!visible.length){onlineOrderList.innerHTML='<div class="panel online-empty">No hay pedidos online todavía.</div>';return}
+  onlineOrderList.innerHTML=visible.map(order=>{
+    const key=onlineStatusKey(order.status),when=new Date(order.created_at).toLocaleString("es-AR");
+    const fulfillment=order.fulfillment==="pickup"?"Retiro en el local":"Delivery";
+    const address=order.fulfillment==="pickup"?"Retiro en Ecuador 8348":[order.address,order.cross_streets,order.neighborhood].filter(Boolean).join(" · ");
+    return `<article class="item online-order ${key}">
+      <div class="row"><div><b>Pedido online #${esc(order.id)}</b><div class="order-meta">${esc(when)} · ${esc(fulfillment)}</div></div><span class="status-pill">${esc(onlineStatusLabel(order.status))}</span></div>
+      <div class="order-meta" style="margin-top:10px"><b>${esc(order.customer_name||"Sin nombre")}</b>${order.customer_phone?` · ${esc(order.customer_phone)}`:""}<br>${esc(address||"Sin dirección")}</div>
+      <div class="order-items">${onlineItemText(order)}</div>
+      <div class="row"><span>${esc(order.payment_method||"Pago")}</span><b>${money(order.total)}</b></div>
+      <div class="online-actions">${onlineOrderActions(order)}</div>
+    </article>`;
+  }).join("");
+}
+async function moveOnlineOrder(id,status,actionLabel){
+  if(status==="rejected"&&!confirm("¿Rechazar este pedido online?"))return;
+  const {error}=await pmOnline.updateStatus(id,status);
+  if(error){onlineOrdersMsg.textContent="No se pudo actualizar el pedido: "+(error.message||error);return}
+  onlineOrdersMsg.style.color="#72e6a3";onlineOrdersMsg.textContent=`${actionLabel} realizado correctamente.`;
+  await loadOnlineOrders(false);
+  setTimeout(()=>{onlineOrdersMsg.textContent="";onlineOrdersMsg.style.color=""},2200);
 }
 async function saveExpense(){
 const name=expenseName.value.trim(),amount=Number(expenseAmount.value);
