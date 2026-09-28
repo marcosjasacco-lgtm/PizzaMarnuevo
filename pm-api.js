@@ -2,13 +2,16 @@
   "use strict";
 
   const RPC = {
-    storefront: ["pm_web_get_storefront", "pm_get_storefront", "pm_web_storefront"],
-    settings: ["pm_web_get_settings", "pm_get_settings"],
-    catalog: ["pm_web_get_catalog", "pm_get_catalog", "pm_web_catalog"],
-    create: ["pm_web_create_order", "pm_web_create_public_order", "pm_create_order", "pm_create_public_order"],
-    publicOrder: ["pm_web_get_order", "pm_get_order", "pm_web_get_public_order"],
-    staffOrders: ["pm_web_admin_list_orders", "pm_web_list_orders", "pm_web_get_orders", "pm_list_orders"],
-    transition: ["pm_web_update_order_status", "pm_web_set_order_status", "pm_update_order_status", "pm_set_order_status"]
+    storefront: [],
+    settings: [],
+    catalog: ["pm_catalog"],
+    create: ["pm_create_order"],
+    publicOrder: ["pm_track_order"],
+    staffOrders: ["pm_staff_orders"],
+    accept: ["pm_accept_order"],
+    reject: ["pm_reject_order"],
+    ready: ["pm_ready_order"],
+    transition: ["pm_transition"]
   };
 
   const signatureError = (error) => {
@@ -167,6 +170,7 @@
       const clientToken = payload.client_token || randomToken();
       const body = { ...payload, client_token: clientToken };
       const variants = [
+        { p_customer_name: body.customer_name, p_payload: body },
         { p_payload: body },
         { p_order: body },
         { payload: body },
@@ -212,6 +216,7 @@
 
     const getOrder = async (orderId, token) => {
       const variants = [
+        { p_id: orderId, p_token: token },
         { p_order_id: orderId, p_public_token: token },
         { p_order_id: orderId, p_token: token },
         { p_id: orderId, p_token: token },
@@ -223,20 +228,39 @@
     };
 
     const listStaffOrders = async () => {
-      const response = await rpcVariants(db, RPC.staffOrders, [{}, { p_status: "active" }, { p_status: null }]);
+      const response = await rpcVariants(db, RPC.staffOrders, [{ p_history: true }, { p_history: false }]);
       if (!response.error) return { data: rowsFrom(response.data).map(normalizeOrder), error: null };
       const fallback = await db.from("pm_web_orders").select("*").order("created_at", { ascending: false });
       if (!fallback.error) return { data: rowsFrom(fallback.data).map(normalizeOrder), error: null };
       return { data: [], error: response.error || fallback.error };
     };
 
-    const updateStatus = async (orderId, status) => {
-      const variants = [
-        { p_order_id: orderId, p_status: status },
-        { p_id: orderId, p_status: status },
-        { order_id: orderId, status }
-      ];
-      const response = await rpcVariants(db, RPC.transition, variants);
+    const updateStatus = async (orderId, status, currentStatus) => {
+      const reason = status === "rejected" ? "Rechazado desde la app interna" : "Actualizado desde la app interna";
+      const expectedStatus = currentStatus === "accepted" ? "preparing" : currentStatus;
+      let response;
+
+      if (status === "rejected") {
+        response = await rpcVariants(db, RPC.reject, [{ p_id: orderId, p_reason: reason }]);
+      } else if (status === "preparing" && (!currentStatus || currentStatus === "pending")) {
+        response = await rpcVariants(db, RPC.accept, [{ p_id: orderId }]);
+      } else if (status === "ready") {
+        response = await rpcVariants(db, RPC.ready, [{ p_id: orderId }]);
+      } else {
+        const nextStatuses = status === "picked_up" ? ["in_transit", "picked_up"] : [status];
+        let last = null;
+        for (const next of nextStatuses) {
+          const attempt = await db.rpc("pm_transition", {
+            p_id: orderId,
+            p_expected: expectedStatus || null,
+            p_next: next,
+            p_reason: reason
+          });
+          if (!attempt.error) { response = attempt; break; }
+          last = attempt;
+        }
+        response = response || last || { data: null, error: { message: "No se pudo cambiar el estado." } };
+      }
       if (!response.error) return { data: normalizeOrder(response.data), error: null };
       const fallback = await db.from("pm_web_orders").update({ status }).eq("id", orderId).select("*").single();
       if (!fallback.error) return { data: normalizeOrder(fallback.data), error: null };

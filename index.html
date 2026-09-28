@@ -501,11 +501,11 @@ function onlineItemText(order){
   return (order.items||[]).map(item=>`${Number(item.quantity||1)} × ${esc(item.name)}${item.notes?` · ${esc(item.notes)}`:""}`).join("<br>")||"Detalle no disponible";
 }
 function onlineOrderActions(order){
-  const key=onlineStatusKey(order.status),id=String(order.id||"").replace(/'/g,"\\'");
-  if(key==="pending")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','preparing','Aceptar pedido')">✅ Aceptar y preparar</button><button class="btn danger" onclick="moveOnlineOrder('${id}','rejected','Rechazar pedido')">✕ Rechazar</button>`;
-  if(key==="accepted"||key==="preparing")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','ready','Pedido listo')">🍕 Pedido listo</button>`;
-  if(key==="ready")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','picked_up','Marcar retirado')">🛵 Marcar retirado</button>`;
-  if(key==="picked_up"||key==="in_transit")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','delivered','Marcar entregado')">✅ Marcar entregado</button>`;
+  const key=onlineStatusKey(order.status),id=String(order.id||"").replace(/'/g,"\\'"),current=key.replace(/'/g,"\\'");
+  if(key==="pending")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','preparing','Aceptar pedido','${current}')">✅ Aceptar y preparar</button><button class="btn danger" onclick="moveOnlineOrder('${id}','rejected','Rechazar pedido','${current}')">✕ Rechazar</button>`;
+  if(key==="accepted"||key==="preparing")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','ready','Pedido listo','${current}')">🍕 Pedido listo</button>`;
+  if(key==="ready")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','picked_up','Marcar retirado','${current}')">🛵 Marcar retirado</button>`;
+  if(key==="picked_up"||key==="in_transit")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','delivered','Marcar entregado','${current}')">✅ Marcar entregado</button>`;
   return "";
 }
 async function loadOnlineOrders(showErrors=true){
@@ -530,9 +530,9 @@ async function loadOnlineOrders(showErrors=true){
     </article>`;
   }).join("");
 }
-async function moveOnlineOrder(id,status,actionLabel){
+async function moveOnlineOrder(id,status,actionLabel,currentStatus){
   if(status==="rejected"&&!confirm("¿Rechazar este pedido online?"))return;
-  const {error}=await pmOnline.updateStatus(id,status);
+  const {error}=await pmOnline.updateStatus(id,status,currentStatus);
   if(error){onlineOrdersMsg.textContent="No se pudo actualizar el pedido: "+(error.message||error);return}
   onlineOrdersMsg.style.color="#72e6a3";onlineOrdersMsg.textContent=`${actionLabel} realizado correctamente.`;
   await loadOnlineOrders(false);
