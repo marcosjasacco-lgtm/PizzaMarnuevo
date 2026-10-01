@@ -228,12 +228,22 @@
     };
 
     const listStaffOrders = async () => {
-      const response = await rpcVariants(db, RPC.staffOrders, [{ p_history: true }, { p_history: false }]);
-      if (!response.error) return { data: rowsFrom(response.data).map(normalizeOrder), error: null };
-      const fallback = await db.from("pm_web_orders").select("*").order("created_at", { ascending: false });
-      if (!fallback.error) return { data: rowsFrom(fallback.data).map(normalizeOrder), error: null };
-      return { data: [], error: response.error || fallback.error };
-    };
+  const [active, history] = await Promise.all([
+    db.rpc("pm_staff_orders", { p_history: false }),
+    db.rpc("pm_staff_orders", { p_history: true })
+  ]);
+
+  const error = active.error || history.error;
+  if (error) return { data: [], error };
+
+  const rows = [
+    ...rowsFrom(active.data),
+    ...rowsFrom(history.data)
+  ].map(normalizeOrder);
+
+  const unique = new Map(rows.map(order => [order.id, order]));
+  return { data: [...unique.values()], error: null };
+};
 
     const updateStatus = async (orderId, status, currentStatus) => {
       const reason = status === "rejected" ? "Rechazado desde la app interna" : "Actualizado desde la app interna";
