@@ -245,38 +245,39 @@
   return { data: [...unique.values()], error: null };
 };
 
-    const updateStatus = async (orderId, status, currentStatus) => {
-      const reason = status === "rejected" ? "Rechazado desde la app interna" : "Actualizado desde la app interna";
-      const expectedStatus = currentStatus === "accepted" ? "preparing" : currentStatus;
+    const listDrivers = async () => {
+      const response = await db.rpc("pm_staff_delivery_drivers", {});
+      return { data: response.error ? [] : rowsFrom(response.data), error: response.error };
+    };
+    const createDriver = async (name, token) => {
+      return await db.rpc("pm_create_driver", { p_name: name.trim(), p_token: token });
+    };
+    const updateStatus = async (orderId, status, currentStatus, driverId = null) => {
+      const canonical = value => ({ accepted: "preparing", picked_up: "on_the_way", in_transit: "on_the_way" })[value] || value;
+      const next = canonical(status), expected = canonical(currentStatus);
+      const reason = next === "rejected" ? "Rechazado desde la app interna" : "Actualizado desde la app interna";
       let response;
-
-      if (status === "rejected") {
-        response = await rpcVariants(db, RPC.reject, [{ p_id: orderId, p_reason: reason }]);
-      } else if (status === "preparing" && (!currentStatus || currentStatus === "pending")) {
-        response = await rpcVariants(db, RPC.accept, [{ p_id: orderId }]);
-      } else if (status === "ready") {
-        response = await rpcVariants(db, RPC.ready, [{ p_id: orderId }]);
+      if (next === "preparing" && expected === "pending") {
+        response = await db.rpc("pm_accept_order", { p_id: orderId });
+      } else if (next === "rejected" && expected === "pending") {
+        response = await db.rpc("pm_reject_order", { p_id: orderId, p_reason: reason });
+      } else if (next === "ready" && expected === "preparing") {
+        response = await db.rpc("pm_ready_order", { p_id: orderId });
+      } else if ((expected === "ready" && next === "on_the_way") || (expected === "on_the_way" && next === "delivered")) {
+        if (next === "on_the_way" && !driverId) return { data: null, error: { message: "Seleccioná un repartidor activo antes de marcar retirado." } };
+        response = await db.rpc("pm_transition", {
+          p_id: orderId, p_expected: expected, p_next: next,
+          p_reason: reason, p_actor: "staff", p_driver: next === "on_the_way" ? driverId : null
+        });
       } else {
-        const nextStatuses = status === "picked_up" ? ["in_transit", "picked_up"] : [status];
-        let last = null;
-        for (const next of nextStatuses) {
-          const attempt = await db.rpc("pm_transition", {
-            p_id: orderId,
-            p_expected: expectedStatus || null,
-            p_next: next,
-            p_reason: reason
-          });
-          if (!attempt.error) { response = attempt; break; }
-          last = attempt;
-        }
-        response = response || last || { data: null, error: { message: "No se pudo cambiar el estado." } };
+        return { data: null, error: { message: "El pedido cambió de estado. Actualizá la lista antes de continuar." } };
       }
-      if (!response.error) return { data: normalizeOrder(response.data), error: null };
-      const fallback = await db.from("pm_web_orders").update({ status }).eq("id", orderId).select("*").single();
-      if (!fallback.error) return { data: normalizeOrder(fallback.data), error: null };
-      return { data: null, error: response.error || fallback.error };
+      // No escritura directa: el servidor valida permisos, estados y registra el evento.
+      if (response.error) return { data: null, error: response.error };
+      const order = normalizeOrder(response.data);
+      return order.id ? { data: order, error: null } : { data: null, error: { message: "No se recibió la confirmación. Actualizá la lista antes de reintentar." } };
     };
 
-    return { getSettings, getCatalog, getStorefront, createOrder, getOrder, listStaffOrders, updateStatus, normalizeOrder };
+    return { getSettings, getCatalog, getStorefront, createOrder, getOrder, listStaffOrders, updateStatus, normalizeOrder, listDrivers, createDriver };
   };
 })();

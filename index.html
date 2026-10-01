@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>PizzaMar · Sistema de gestión</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="./pm-api.js"></script>
+<script src="./pm-api.js?v=entregas-1"></script>
 <style>
 :root{--red:#ef3b3b;--red2:#ff5a5a;--dark:#171717;--panel:#202020;--panel2:#292929;--text:#f5f5f5;--muted:#aaa;--line:#383838;--green:#63d49a;--yellow:#f4c95d}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--text);background:#111}
@@ -36,7 +36,7 @@ label{display:block;color:#bbb;font-size:14px;margin:14px 0 7px}input,select{wid
 .cart{background:#151515;border-radius:15px;padding:12px;margin-top:12px}.cart .row{padding:7px 0;border-bottom:1px solid #333}.cart .row:last-child{border:0}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #333;font-size:14px}th{color:#aaa}
 .notice{padding:12px;border-radius:12px;background:#332f18;color:#f8dc78;margin-top:10px;font-size:14px}
-.online-order{border-left:4px solid var(--red)}.online-order.pending{border-left-color:var(--yellow)}.online-order.preparing{border-left-color:#72b7ff}.online-order.ready{border-left-color:var(--green)}.online-order.picked_up{border-left-color:#b88cff}.online-order.delivered{border-left-color:#777}.online-order.rejected{border-left-color:#8d3c3c;opacity:.82}.status-pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;background:#333;color:#fff;font-size:12px;font-weight:800}.online-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.online-actions .btn{padding:10px 12px}.order-meta{color:#bbb;font-size:13px;line-height:1.5}.order-items{margin:10px 0;padding:10px;background:#151515;border-radius:12px}.online-empty{padding:18px;text-align:center;color:#aaa}
+.online-order{border-left:4px solid var(--red)}.online-order.pending{border-left-color:var(--yellow)}.online-order.preparing{border-left-color:#72b7ff}.online-order.ready{border-left-color:var(--green)}.online-order.on_the_way,.online-order.picked_up{border-left-color:#b88cff}.online-order.delivered{border-left-color:#777}.online-order.rejected{border-left-color:#8d3c3c;opacity:.82}.status-pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;background:#333;color:#fff;font-size:12px;font-weight:800}.online-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.online-actions .btn{padding:10px 12px}.order-meta{color:#bbb;font-size:13px;line-height:1.5}.order-items{margin:10px 0;padding:10px;background:#151515;border-radius:12px}.online-empty{padding:18px;text-align:center;color:#aaa}
 </style>
 </head>
 <body>
@@ -102,6 +102,20 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 8px
     <section id="onlineOrders" class="section">
       <button class="btn ghost back" onclick="go('dashboard')">← Volver</button>
       <div class="row"><div><h2 style="margin:0">📲 Pedidos online</h2><p class="muted" style="margin-top:6px">Los pedidos se actualizan automáticamente.</p></div><button class="btn ghost" onclick="loadOnlineOrders(true)">Actualizar</button></div>
+      <div class="panel" style="margin-top:16px">
+        <h3>Repartidores</h3>
+        <p id="deliveryDriversMsg" role="status" class="muted"></p>
+        <div class="admin-only">
+          <label for="newDriverName">Nombre del repartidor</label>
+          <div class="row"><input id="newDriverName" maxlength="80" placeholder="Nombre" style="flex:1;min-width:160px"><button id="createDriverBtn" class="btn primary" onclick="registerDeliveryDriver()">Registrar repartidor</button></div>
+          <div id="driverAccessBox" hidden style="margin-top:12px">
+            <label for="driverAccessLink">Acceso privado del repartidor</label>
+            <input id="driverAccessLink" readonly onclick="this.select()">
+            <button class="btn ghost" onclick="copyDriverAccess()">Copiar enlace</button>
+            <p class="muted">Compartilo solo con ese repartidor. Guardá el enlace: no se puede recuperar desde la lista. Vence a los 30 días.</p>
+          </div>
+        </div>
+      </div>
       <div id="onlineOrdersMsg" class="msg"></div>
       <div id="onlineOrderList" class="list"></div>
     </section>
@@ -495,7 +509,7 @@ function onlineStatusKey(status){
 }
 function onlineStatusLabel(status){
   const key=onlineStatusKey(status);
-  return ({pending:"Pendiente",accepted:"En preparación",preparing:"En preparación",ready:"Pedido listo",picked_up:"En camino",in_transit:"En camino",delivered:"Entregado / finalizado",rejected:"Rechazado"})[key]||status||"Pendiente";
+  return ({pending:"Pendiente",accepted:"En preparación",preparing:"En preparación",ready:"Pedido listo",on_the_way:"En camino",picked_up:"En camino",in_transit:"En camino",delivered:"Entregado / finalizado",rejected:"Rechazado"})[key]||status||"Pendiente";
 }
 function onlineItemText(order){
   return (order.items||[]).map(item=>`${Number(item.quantity||1)} × ${esc(item.name)}${item.notes?` · ${esc(item.notes)}`:""}`).join("<br>")||"Detalle no disponible";
@@ -504,11 +518,52 @@ function onlineOrderActions(order){
   const key=onlineStatusKey(order.status),id=String(order.id||"").replace(/'/g,"\\'"),current=key.replace(/'/g,"\\'");
   if(key==="pending")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','preparing','Aceptar pedido','${current}')">✅ Aceptar y preparar</button><button class="btn danger" onclick="moveOnlineOrder('${id}','rejected','Rechazar pedido','${current}')">✕ Rechazar</button>`;
   if(key==="accepted"||key==="preparing")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','ready','Pedido listo','${current}')">🍕 Pedido listo</button>`;
-  if(key==="ready")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','picked_up','Marcar retirado','${current}')">🛵 Marcar retirado</button>`;
-  if(key==="picked_up"||key==="in_transit")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','delivered','Marcar entregado','${current}')">✅ Marcar entregado</button>`;
+  if(key==="ready")return `<label for="driver-${esc(id)}">Repartidor</label><select id="driver-${esc(id)}" onchange="deliverySelections[this.dataset.order]=this.value" data-order="${esc(id)}"><option value="">Seleccionar repartidor</option>${deliveryDrivers.map(d=>`<option value="${esc(d.id)}" ${String(deliverySelections[id]||order.driver_id||"")===String(d.id)?"selected":""}>${esc(d.name)}</option>`).join("")}</select><button class="btn primary" onclick="moveOnlineOrder('${id}','on_the_way','Marcar retirado','${current}')">🛵 Marcar retirado</button>`;
+  if(key==="on_the_way"||key==="picked_up"||key==="in_transit")return `<button class="btn primary" onclick="moveOnlineOrder('${id}','delivered','Marcar entregado','${current}')">✅ Marcar entregado</button>`;
   return "";
 }
+let deliveryDrivers = [];
+const deliverySelections = Object.create(null);
+const deliveryBusy = new Set();
+async function refreshDeliveryDrivers(){
+  const msg=document.getElementById("deliveryDriversMsg");
+  try {
+    const result=await pmOnline.listDrivers();
+    if(result.error)throw result.error;
+    deliveryDrivers=(result.data||[]).filter(d=>d.active===true && new Date(d.expires_at)>new Date());
+    msg.textContent=deliveryDrivers.length ? `${deliveryDrivers.length} repartidor(es) disponibles.` : "No hay repartidores activos. Un administrador debe registrar uno.";
+  } catch(error){deliveryDrivers=[];msg.textContent="No se pudieron cargar los repartidores: "+(error.message||error);}
+}
+async function registerDeliveryDriver(){
+  const input=document.getElementById("newDriverName"),btn=document.getElementById("createDriverBtn"),msg=document.getElementById("deliveryDriversMsg");
+  const name=input.value.trim();
+  if(!name){msg.textContent="Ingresá el nombre del repartidor.";return;}
+  if(btn.disabled)return;
+  btn.disabled=true;
+  try {
+    const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,"0")).join("");
+    const result=await pmOnline.createDriver(name,token);
+    if(result.error)throw result.error;
+    if(!result.data?.id)throw new Error("No se recibió la confirmación del registro. Actualizá la lista antes de reintentar.");
+    const link=new URL("./repartidor.html",location.href);link.hash=new URLSearchParams({token}).toString();
+    document.getElementById("driverAccessLink").value=link.href;
+    document.getElementById("driverAccessBox").hidden=false;
+    input.value="";
+    await loadOnlineOrders(true);
+  }catch(error){msg.textContent="No se pudo registrar: "+(error.message||error);}
+  finally{btn.disabled=false;}
+}
+async function copyDriverAccess(){
+  const input=document.getElementById("driverAccessLink");
+  try{await navigator.clipboard.writeText(input.value);document.getElementById("deliveryDriversMsg").textContent="Enlace copiado.";}
+  catch{input.focus();input.select();document.getElementById("deliveryDriversMsg").textContent="Mantené presionado el enlace y elegí Copiar.";}
+}
+let onlineLoading=false;
 async function loadOnlineOrders(showErrors=true){
+  if(onlineLoading||deliveryBusy.size)return;
+  onlineLoading=true;
+  try {
+  await refreshDeliveryDrivers();
   const {data,error}=await pmOnline.listStaffOrders();
   if(error){if(showErrors)onlineOrdersMsg.textContent="No se pudieron cargar los pedidos online: "+(error.message||error);return}
   const rows=(data||[]).filter(x=>x&&x.id!=null).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
@@ -529,14 +584,27 @@ async function loadOnlineOrders(showErrors=true){
       <div class="online-actions">${onlineOrderActions(order)}</div>
     </article>`;
   }).join("");
+  } catch(error){if(showErrors)onlineOrdersMsg.textContent="No se pudieron cargar los pedidos: "+(error.message||error);}
+  finally{onlineLoading=false;}
 }
 async function moveOnlineOrder(id,status,actionLabel,currentStatus){
+  if(deliveryBusy.has(id))return;
   if(status==="rejected"&&!confirm("¿Rechazar este pedido online?"))return;
-  const {error}=await pmOnline.updateStatus(id,status,currentStatus);
-  if(error){onlineOrdersMsg.textContent="No se pudo actualizar el pedido: "+(error.message||error);return}
-  onlineOrdersMsg.style.color="#72e6a3";onlineOrdersMsg.textContent=`${actionLabel} realizado correctamente.`;
-  await loadOnlineOrders(false);
-  setTimeout(()=>{onlineOrdersMsg.textContent="";onlineOrdersMsg.style.color=""},2200);
+  const driverId=status==="on_the_way"?document.getElementById("driver-"+id)?.value:null;
+  if(status==="on_the_way"&&!driverId){onlineOrdersMsg.textContent="Seleccioná un repartidor activo antes de marcar retirado.";return;}
+  deliveryBusy.add(id);
+  onlineOrderList.querySelectorAll("button").forEach(b=>b.disabled=true);
+  let success=false;
+  try{
+    const {error}=await pmOnline.updateStatus(id,status,currentStatus,driverId);
+    if(error)throw error;
+    success=true;
+  }catch(error){onlineOrdersMsg.textContent="No se pudo actualizar el pedido: "+(error.message||error);}
+  finally{deliveryBusy.delete(id);onlineOrderList.querySelectorAll("button").forEach(b=>b.disabled=false);}
+  if(success){
+    await loadOnlineOrders(false);
+    onlineOrdersMsg.textContent=`${actionLabel} realizado correctamente.`;
+  }
 }
 async function saveExpense(){
 const name=expenseName.value.trim(),amount=Number(expenseAmount.value);

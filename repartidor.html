@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="es-AR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>PizzaMar · Repartidores</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#151515;color:#fff;font:17px system-ui,sans-serif}main{max-width:760px;margin:auto;padding:24px 16px}h1{font-size:28px}h1 span{color:#ff3349}.panel{background:#242424;border-radius:16px;padding:20px;margin:16px 0;overflow-wrap:anywhere}.row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}button{font:inherit;border:0;border-radius:12px;padding:14px;background:#e92339;color:white;cursor:pointer}button:disabled{opacity:.5}.secondary{background:#414141}.muted{color:#ccc}#message{white-space:pre-wrap;color:#ffcc80}p{line-height:1.5}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script></head>
+<body><main><div class="row"><h1>Pizza<span>Mar</span> · Repartos</h1><button id="exit" class="secondary">Salir</button></div>
+<p class="muted">Retirá el pedido cuando esté listo y marcá la entrega cuando llegue al cliente.</p>
+<button id="refresh" class="secondary">Actualizar</button><p id="message" role="status"></p><div id="orders"></div></main>
+<script src="./repartidor.js?v=1"></script></body></html>
